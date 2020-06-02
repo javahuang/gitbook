@@ -1,6 +1,6 @@
 # docker 集群
 
-## docker swarm
+## docker swarm 介绍
 
 节点分为 manager 节点和 worker 节点
 
@@ -78,6 +78,11 @@ To add a worker to this swarm, run the following command:
 
 To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
 
+# 限制 task 的 history 数量
+# 默认值是 5，如果多次执行 docker service update，会在 docker service ps 里面看到每个 Running 状态的 task 会对应 4 个 Shutdown 状态的task
+docker swarm update --task-history-limit 1
+
+
 # 查看 docker 节点状态
 docker node ls
 # 删除 docker node
@@ -86,18 +91,35 @@ docker node rm <node id>
 docker node inspect self --pretty
 # 添加 label
 docker node update --label-add foo --label-add bar=baz node-1
+```
 
+### [docker service](https://docs.docker.com/engine/reference/commandline/service_create/)
 
+`docker service` vs `docker stack` 和类似于 `docker run` vs `docker compose`
+
+```bash
 # 创建一个 nginx 集群，复制三个节点，暴露端口 80
 docker service create --replicas 3 -p 80:80 --name nginx-cluster nginx:1.13.7-alpine
 # 查看服务状态
 docker service ps nginx-cluster
 # 查看服务详细信息
 docker service inspect --pretty nginx-cluster
-# 服务扩容
+# 服务扩容 将 task 扩展为 5 个
 docker service scale nginx-cluster=5
 # 删除服务
 docker service rm nginx-cluster
+# 查看服务日志 默认显示所有的日志 -
+# -tail 从日志结尾开始显示多少行
+# --since 从指定时间戳开始的日志 1m30s 3h
+docker service logs -f --tail 100 nginx-cluster
+
+# Roll back to the previous version of a service
+# docker service create，每次执行 docker service update 都会创建一个新的版本
+docker service rollback nginx-cluster
+
+
+
+
 # 创建服务 设置更新延迟
 # --replicas 复制模式
 # --mode global 全局模式，每个 node 上将起一个 task 任务
@@ -171,11 +193,26 @@ docker service create --name=my_redis \
 # 但是每个 node 都得创建 volume，service 在多个 node 上面的 task 能否共享 volume 呢？可以使用 nfs
 ```
 
+### docker stack
+
+```bash
+# 通过 compose 文件来创建/更新 docker service
+docker stack deploy -c bb-stack.yaml demo
+
+docker stack ls
+
+docker stack ps
+
+docker stack services demo
+```
+
+## network
+
 ![ingress network](media/15390541206926.png)
 
 ## 通过 docker config 保存配置数据
 
-## 文档阅读笔记
+## practice
 
 ```bash
 
@@ -184,10 +221,16 @@ docker service create --name=my_redis \
 ## 参考
 
 [raft 算法图解](http://thesecretlivesofdata.com/raft/)
+
 [在 swarm 上部署服务](https://docs.docker.com/engine/swarm/services/)
+
 [docker-compose](https://docs.docker.com/compose/install/#install-compose)
 
 [Dockerfile reference](https://docs.docker.com/engine/reference/builder/)
+
+[Docker cli](https://docs.docker.com/engine/reference/run/)
+
+[compose-file](https://docs.docker.com/compose/compose-file/)
 
 ## 疑问
 

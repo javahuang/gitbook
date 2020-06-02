@@ -2,7 +2,7 @@
 
 ## 配置
 
-- Service configruation65
+- Service configruation
 
   - **build** ，可以用来构建镜像
     - **context**，上下文，一个包含 Dockerfile 文件的路径后者 git repository url

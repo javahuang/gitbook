@@ -169,52 +169,75 @@ docker run -it --rm --name alpine3 --network test-net alpine
 
 ## 管理应用数据
 
-### [Volumes](https://docs.docker.com/storage/volumes/)
+[Volumes](https://docs.docker.com/storage/volumes/)
 
 数据卷是一个可供一个或多个容器使用的特殊目录，生命周期独立于容器，不会再容器删除后删除;
 启动容器时指定 volume，如果不存在将自动添加；
 
+```bash
+# 创建数据卷
+docker volume create my-vol
+# 查看数据卷信息
+docker volume inspect my-vol
+# 将数据卷挂载到容器里
+# 使用数据卷
+--mount type=volume,src=my-vol,target=/icanwrite
+# 使用主机目录
+--mount type=bind,source=/data,destination=/data busybox
+docker run -d -P --name web --mount source=my-vol,target=/webapp
+# 删除数据卷
+docker volume rm my-vol
+# 清除所有未使用的 volume
+docker volume prune
+```
+
+### 选择 `-v` 还是 `--mount`
+
+官方文档推荐使用 `--mount` 命令
+
+`-v` 的格式是 `\<src>:\<dest>:<ro|>`，包含三个参数，**不支持在 `docker service` 里面使用**，如果 src 主机文件或者目录不存在，则 docker 会自动创建一个对应名称的目录
+
+- src，为 volumes 的名字，或者主机的路径
+- dest，容器内部的文件或者目录路径
+- 可选参数
+  - `ro` 表示 readonly
+
+`--mount` 逗号分隔的一组 `\<key>=\<value>` 键值对
+
+- `type` 可以是 `bind`、`volume`、`tmpfs`，通常是 volume
+- `source` 可以使用 `src` 别名
+  - 如果 type=volume，source 就是 volume 的名字，匿名卷改字段可以省略
+  - 如果 type=bind，source 就是主机文件或者目录的路径
+- `destination` 容器内部的文件或者目录的路径，也可以使用 `dst` 或者 `target` 别名
+- `readonly`，指定之后，mount 的文件或者目录只读
+- `volume-opt`，可以指定多个，kv 键值对，只有 type=volume 的时候可以使用
+- `bind-propagation`，只有 type=bind 的时候可以使用
+  - shared
+  - slave
+  - private
+  - rshared
+  - rslave
+  - rprivate 默认值
+
+### volume driver
+
 - **使用 volume 驱动**，默认情况下，创建的 volume 都是直接使用的本机的文件系统（`local`），docker 支持使用插件的方式如 [docker-volume-sshfs](https://github.com/vieux/docker-volume-sshfs)，可以通过 ssh 的方式使用远程主机目录。
 
-  ```bash
-  # 安装插件
-  docker plugin install --grant-all-permissions vieux/sshfs
-  # 创建 volume
-  docker volume create --driver vieux/sshfs \
+```bash
+# 安装插件
+docker plugin install --grant-all-permissions vieux/sshfs
+# 创建 volume
+docker volume create --driver vieux/sshfs \
   -o sshcmd=test@node2:/home/test \
   -o password=testpassword \
   sshvolume
-  # 使用指定的 volume 驱动
-  docker run -d \
+# 使用指定的 volume 驱动
+docker run -d \
   --name sshfs-container \
   --volume-driver vieux/sshfs \
   --mount src=sshvolume,target=/app,volume-opt=sshcmd=test@node2:/home/test,volume-opt=password=testpassword \
   nginx:latest
-
-  # 创建数据卷
-  docker volume create my-vol
-  # 查看数据卷信息
-  docker volume inspect my-vol
-  # 将数据卷挂载到容器里
-  # 使用数据卷
-  --mount type=volume,target=/icanwrite
-  # 使用主机目录
-  --mount type=bind,source=/data,destination=/data busybox
-  docker run -d -P --name web --mount source=my-vol,target=/webapp
-  # 删除数据卷
-  docker volume rm my-vol
-
-  docker run -d \
-  --name devtest \
-  --mount source=myvol2,target=/app \
-  nginx:latest
-
-  docker run -d \
-  --name devtest \
-  -v myvol2:/app \
-  nginx:latest
-
-  ```
+```
 
 ## 和传统虚拟机（KVM）对比
 
